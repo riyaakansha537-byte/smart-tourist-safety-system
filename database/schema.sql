@@ -50,13 +50,42 @@ CREATE TABLE emergency_contacts (
 -- 3. SAFE & DANGEROUS ZONES
 -- Geofence boundaries defining safe havens and hazardous areas.
 -- ============================================================
-
+CREATE TABLE safe_dangerous_zones (
+    zone_id SERIAL PRIMARY KEY,
+    zone_name VARCHAR(100) NOT NULL,
+    zone_type VARCHAR(20) NOT NULL,
+    center_lat DECIMAL(9, 6) NOT NULL,
+    center_lng DECIMAL(9, 6) NOT NULL,
+    radius_km DECIMAL(6, 2) NOT NULL,
+    risk_level VARCHAR(20) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT chk_zone_type CHECK (zone_type IN ('SAFE', 'DANGEROUS')),
+    CONSTRAINT chk_zone_risk CHECK (risk_level IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+    CONSTRAINT chk_zone_radius CHECK (radius_km > 0)
+);
 
 -- ============================================================
 -- 4. LOCATIONS
 -- Periodic GPS telemetry reported from tourist mobile apps.
 -- ============================================================
-
+CREATE TABLE locations (
+    location_id SERIAL PRIMARY KEY,
+    tourist_id INT NOT NULL,
+    latitude DECIMAL(9, 6) NOT NULL,
+    longitude DECIMAL(9, 6) NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    zone_id INT,
+    CONSTRAINT fk_locations_tourist
+        FOREIGN KEY (tourist_id)
+        REFERENCES tourists (tourist_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_locations_zone
+        FOREIGN KEY (zone_id)
+        REFERENCES safe_dangerous_zones (zone_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
 
 -- ============================================================
 -- 5. EMERGENCY INCIDENTS
