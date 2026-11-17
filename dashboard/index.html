@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Tourist Safety & Emergency Response Command</title>
+  <meta name="description" content="Central Emergency Operations Dashboard featuring Real-Time Geospatial Tracking, OS Priority Scheduling, and Banker's Algorithm Deadlock Avoidance.">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="/dashboard/styles.css">
+</head>
+<body>
+
+  <!-- Top Command Navigation -->
+  <header class="top-nav" id="topNav">
+    <div class="nav-brand">
+      <div class="radar-pulse"></div>
+      <div class="brand-text">
+        <h1 class="brand-title">TOURIST SAFETY COMMAND</h1>
+        <span class="brand-subtitle">Emergency Response & Dispatch System</span>
+      </div>
+    </div>
+
+    <!-- OS Status Badges -->
+    <div class="os-badges">
+      <div class="badge badge-os" id="badgeWorkers">
+        <span class="dot dot-green"></span>
+        <span class="badge-label">3 WORKERS ACTIVE</span>
+      </div>
+      <div class="badge badge-os" id="badgeBanker">
+        <span class="dot dot-emerald"></span>
+        <span class="badge-label" id="bankerStatusText">BANKER'S: SAFE STATE</span>
+      </div>
+      <div class="badge badge-os" id="badgeQueue">
+        <span class="dot dot-cyan"></span>
+        <span class="badge-label" id="queueStatusText">QUEUE: 0 PENDING</span>
+      </div>
+    </div>
+
+    <!-- Live Clock & Actions -->
+    <div class="nav-controls">
+      <div class="live-clock" id="liveClock">--:--:-- UTC</div>
+      <button class="btn btn-secondary" id="btnAddSample">
+        <span>＋</span> Sample
+      </button>
+      <button class="btn btn-primary" id="btnRunSim">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Run Simulation
+      </button>
+    </div>
+  </header>
+
+  <!-- Emergency Alert Banner (Shown on Active SOS/Accident) -->
+  <div class="alert-banner" id="alertBanner" style="display: none;">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-content">
+      <strong id="alertTitle">CRITICAL DISTRESS SIGNAL ACTIVE</strong>
+      <span id="alertDetails">Incident #101 reported at Baga Beach Cliffs</span>
+    </div>
+    <button class="btn btn-sm btn-danger" id="btnDismissAlert">Acknowledge</button>
+  </div>
+
+  <main class="dashboard-grid">
+    
+    <!-- Left Column: KPI Stats, Map & Dispatch -->
+    <section class="main-column">
+      
+      <!-- Operational Metric Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card" id="kpiTourists">
+          <div class="kpi-header">
+            <span class="kpi-title">Active Tourists</span>
+            <span class="kpi-icon">👥</span>
+          </div>
+          <div class="kpi-value" id="valTourists">--</div>
+          <div class="kpi-subtext">Monitored in Protected Zones</div>
+        </div>
+
+        <div class="kpi-card kpi-danger" id="kpiEmergencies">
+          <div class="kpi-header">
+            <span class="kpi-title">Active Emergencies</span>
+            <span class="kpi-icon">🚨</span>
+          </div>
+          <div class="kpi-value" id="valEmergencies">0</div>
+          <div class="kpi-subtext" id="valEmergenciesSub">Priority 1 & 2 Incidents</div>
+        </div>
+
+        <div class="kpi-card kpi-accent" id="kpiResources">
+          <div class="kpi-header">
+            <span class="kpi-title">Available Fleet</span>
+            <span class="kpi-icon">🚑</span>
+          </div>
+          <div class="kpi-value" id="valResources">--</div>
+          <div class="kpi-subtext" id="valResourcesSub">Ambulances, SAR, Fire</div>
+        </div>
+
+        <div class="kpi-card kpi-info" id="kpiQueue">
+          <div class="kpi-header">
+            <span class="kpi-title">Priority Queue</span>
+            <span class="kpi-icon">⚡</span>
+          </div>
+          <div class="kpi-value" id="valQueue">0</div>
+          <div class="kpi-subtext">OS Scheduling Backlog</div>
+        </div>
+      </div>
+
+      <!-- Geospatial Tactical Map Card -->
+      <div class="card map-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Geospatial Tactical Map</h2>
+            <span class="card-tag">Real-Time Geofence & Fleet Telemetry</span>
+          </div>
+          <div class="map-legend">
+            <span class="legend-item"><span class="legend-dot dot-safe"></span> Safe Haven</span>
+            <span class="legend-item"><span class="legend-dot dot-danger"></span> Hazardous Zone</span>
+            <span class="legend-item"><span class="legend-dot dot-sos"></span> Distress/Incident</span>
+            <span class="legend-item"><span class="legend-dot dot-fleet"></span> Fleet Unit</span>
+          </div>
+        </div>
+        <div class="map-container" id="tacticalMap"></div>
+      </div>
+
+      <!-- Multi-View Section Navigation Tabs -->
+      <div class="tabs-header">
+        <div class="tabs-nav" id="dashboardTabs">
+          <button class="tab-btn active" data-tab="tabIncidents">
+            <span>🚨</span> Incidents <span class="tab-badge" id="tabBadgeIncidents">0</span>
+          </button>
+          <button class="tab-btn" data-tab="tabTourists">
+            <span>👥</span> Tourists <span class="tab-badge" id="tabBadgeTourists">0</span>
+          </button>
+          <button class="tab-btn" data-tab="tabTeams">
+            <span>🛡️</span> Rescue Teams <span class="tab-badge" id="tabBadgeTeams">0</span>
+          </button>
+          <button class="tab-btn" data-tab="tabResources">
+            <span>🚑</span> Fleet Apparatus <span class="tab-badge" id="tabBadgeResources">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Panel 1: Active Incidents -->
+      <div class="tab-panel active" id="tabIncidents">
+        <div class="card incidents-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">Live Emergency Dispatch Incidents</h2>
+              <span class="card-tag">Ranked by Urgency Priority</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnRefreshIncidents">Refresh</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="incidentsTable">
+              <thead>
+                <tr>
+                  <th>Priority</th>
+                  <th>Incident ID</th>
+                  <th>Tourist / Contact</th>
+                  <th>Type</th>
+                  <th>Emergency Details</th>
+                  <th>Coordinates</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="incidentsBody">
+                <tr>
+                  <td colspan="8" class="table-empty">Loading active incidents...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Panel 2: Registered Tourists -->
+      <div class="tab-panel" id="tabTourists">
+        <div class="card tourists-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">Registered Tourists & Digital Safety Cards</h2>
+              <span class="card-tag">Live DBMS Profiles & Next-of-Kin Contacts</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnRefreshTourists">Refresh</button>
+          </div>
+          
+          <div class="table-toolbar">
+            <div class="search-box">
+              <span>🔍</span>
+              <input type="text" id="touristSearchInput" placeholder="Search by name, phone, email, country...">
+            </div>
+            <select class="filter-select" id="filterBloodGroup">
+              <option value="">All Blood Groups</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="touristsTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Tourist Profile</th>
+                  <th>Contact Information</th>
+                  <th>Country & Blood</th>
+                  <th>Emergency Next-of-Kin</th>
+                  <th>Registered On</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="touristsBody">
+                <tr>
+                  <td colspan="7" class="table-empty">Loading registered tourists...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Panel 3: Rescue Teams -->
+      <div class="tab-panel" id="tabTeams">
+        <div class="card teams-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">Specialized Human Rescue Teams</h2>
+              <span class="card-tag">Paramedic, SAR, Fire & Marine Units</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnRefreshTeams">Refresh</button>
+          </div>
+
+          <div class="table-toolbar">
+            <div class="search-box">
+              <span>🔍</span>
+              <input type="text" id="teamSearchInput" placeholder="Filter teams by name or specialization...">
+            </div>
+            <select class="filter-select" id="filterTeamStatus">
+              <option value="">All Statuses</option>
+              <option value="AVAILABLE">AVAILABLE</option>
+              <option value="BUSY">BUSY</option>
+            </select>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="teamsTable">
+              <thead>
+                <tr>
+                  <th>Unit ID</th>
+                  <th>Team Designation</th>
+                  <th>Specialization</th>
+                  <th>Personnel Capacity</th>
+                  <th>Dispatch Hot-line</th>
+                  <th>Operational Status</th>
+                </tr>
+              </thead>
+              <tbody id="teamsBody">
+                <tr>
+                  <td colspan="6" class="table-empty">Loading emergency rescue teams...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Panel 4: Fleet Resources (Banker's Algorithm Units) -->
+      <div class="tab-panel" id="tabResources">
+        <div class="card resources-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">Emergency Fleet Apparatus & Vehicles</h2>
+              <span class="card-tag">Banker's Algorithm Physical Resource Matrix</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnRefreshResources">Refresh</button>
+          </div>
+
+          <div class="table-toolbar">
+            <select class="filter-select" id="filterResourceType">
+              <option value="">All Apparatus Types</option>
+              <option value="AMBULANCE">Ambulances</option>
+              <option value="RESCUE_TEAM">Rescue Teams</option>
+              <option value="HELICOPTER">Helicopters</option>
+            </select>
+            <select class="filter-select" id="filterResourceStatus">
+              <option value="">All Statuses</option>
+              <option value="AVAILABLE">AVAILABLE</option>
+              <option value="ASSIGNED">ASSIGNED</option>
+              <option value="MAINTENANCE">MAINTENANCE</option>
+            </select>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="resourcesTable">
+              <thead>
+                <tr>
+                  <th>Resource ID</th>
+                  <th>Vehicle / Apparatus Name</th>
+                  <th>Resource Class</th>
+                  <th>Live Coordinates</th>
+                  <th>Status</th>
+                  <th>Tactical Action</th>
+                </tr>
+              </thead>
+              <tbody id="resourcesBody">
+                <tr>
+                  <td colspan="6" class="table-empty">Loading fleet apparatus...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Right Column: OS Concepts (Banker's, Queue, Workers, Audit Feed) -->
+    <aside class="sidebar-column">
+      
+      <!-- Quick Test & Simulation Panel -->
+      <div class="card quick-actions-card">
+        <div class="card-header">
+          <h2 class="card-title">Live Dispatch Simulation Controls</h2>
+        </div>
+        <div class="action-buttons-grid">
+          <button class="btn btn-action btn-danger" id="btnSimAccident">
+            <span>💥</span> Critical Accident (P1)
+          </button>
+          <button class="btn btn-action btn-warning" id="btnSimSOS">
+            <span>🚨</span> Trigger SOS Beacon (P2)
+          </button>
+          <button class="btn btn-action btn-amber" id="btnSimGeofence">
+            <span>⚠️</span> Geofence Breach (P3)
+          </button>
+          <button class="btn btn-action btn-teal" id="btnSimGPS">
+            <span>📍</span> GPS Telemetry Ping (P5)
+          </button>
+        </div>
+      </div>
+
+      <!-- OS Concept: Banker's Algorithm Deadlock Avoidance -->
+      <div class="card banker-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Deadlock Avoidance (Banker's Algorithm)</h2>
+            <span class="card-tag">OS Concept • Dijkstra Safety Check</span>
+          </div>
+          <span class="badge" id="bankerSafetyBadge">SAFE</span>
+        </div>
+        
+        <div class="banker-content">
+          <!-- Available Vector -->
+          <div class="matrix-block">
+            <div class="matrix-title">Available Resource Vector</div>
+            <div class="vector-display" id="bankerAvailableVector">
+              <div class="vector-pill">Ambulances: <strong id="availAmb">--</strong></div>
+              <div class="vector-pill">Rescue Teams: <strong id="availTeams">--</strong></div>
+              <div class="vector-pill">Helicopters: <strong id="availCopter">--</strong></div>
+            </div>
+          </div>
+
+          <!-- Safe Sequence Display -->
+          <div class="matrix-block">
+            <div class="matrix-title">Calculated Safe Execution Sequence</div>
+            <div class="safe-sequence-box" id="safeSequenceBox" aria-live="polite">
+              Loading Banker's state...
+            </div>
+            <div class="matrix-title safe-sequence-status" id="safeSequenceStatus">Waiting for live banker state</div>
+          </div>
+
+          <!-- Banker's Test Buttons -->
+          <div class="banker-test-row">
+            <button class="btn btn-secondary btn-sm" id="btnTestSafeAlloc">Test Safe Grant</button>
+            <button class="btn btn-outline-danger btn-sm" id="btnTestUnsafeAlloc">Test Deadlock Deny</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- OS Concept: Priority Scheduling -->
+      <div class="card priority-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Priority Queue (OS Scheduling)</h2>
+            <span class="card-tag">1: Accident > 2: SOS > 3: Zone > 5: GPS</span>
+          </div>
+        </div>
+        <div class="priority-lanes">
+          <div class="priority-lane p-lane-1">
+            <div class="lane-header">P1 Critical Accident</div>
+            <div class="lane-count" id="countP1">0</div>
+          </div>
+          <div class="priority-lane p-lane-2">
+            <div class="lane-header">P2 SOS Distress</div>
+            <div class="lane-count" id="countP2">0</div>
+          </div>
+          <div class="priority-lane p-lane-3">
+            <div class="lane-header">P3 Geofence Breach</div>
+            <div class="lane-count" id="countP3">0</div>
+          </div>
+          <div class="priority-lane p-lane-4">
+            <div class="lane-header">P4 Safety Alert</div>
+            <div class="lane-count" id="countP4">0</div>
+          </div>
+          <div class="priority-lane p-lane-5">
+            <div class="lane-header">P5 GPS Update</div>
+            <div class="lane-count" id="countP5">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OS Concept: Multithreaded Worker Pool -->
+      <div class="card workers-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Multithreaded Worker Pool</h2>
+            <span class="card-tag">3 Background Worker Threads</span>
+          </div>
+        </div>
+        <div class="worker-threads-list" id="workerThreadsList">
+          <div class="worker-row">
+            <span class="dot dot-green"></span>
+            <span class="worker-name">EmergencyWorker-1</span>
+            <span class="worker-tasks" id="w1Tasks">Tasks: 0</span>
+          </div>
+          <div class="worker-row">
+            <span class="dot dot-green"></span>
+            <span class="worker-name">EmergencyWorker-2</span>
+            <span class="worker-tasks" id="w2Tasks">Tasks: 0</span>
+          </div>
+          <div class="worker-row">
+            <span class="dot dot-green"></span>
+            <span class="worker-name">EmergencyWorker-3</span>
+            <span class="worker-tasks" id="w3Tasks">Tasks: 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Audit Trail & Event Logs -->
+      <div class="card logs-card">
+        <div class="card-header">
+          <h2 class="card-title">Immutable System Audit Trail</h2>
+          <span class="card-tag">ACID Logs & State Transitions</span>
+        </div>
+        <div class="terminal-log-window" id="terminalLogs">
+          <div class="log-entry log-info">[SYSTEM] Initializing Tourist Safety Command Center...</div>
+          <div class="log-entry log-info">[OS] PriorityQueue and 3 Worker Threads synchronized.</div>
+          <div class="log-entry log-info">[BANKER] Initial fleet capacities registered. System in SAFE STATE.</div>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- Tourist Profile Modal -->
+  <div class="modal-backdrop" id="touristModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="card-title-group">
+          <h3 class="modal-title" id="mTouristName">Tourist Profile</h3>
+          <span class="card-tag" id="mTouristId">#0</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseTouristModal">&times;</button>
+      </div>
+      <div class="modal-body" id="touristModalBody">
+        <!-- Injected dynamically via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Socket.IO Client -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <!-- Dashboard Logic -->
+  <script src="/dashboard/app.js"></script>
+</body>
+</html>
