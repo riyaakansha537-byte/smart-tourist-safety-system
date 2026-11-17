@@ -1,0 +1,23 @@
+# ============================================================
+# Smart Tourist Safety and Emergency Response System
+# Python Dependencies
+# ============================================================
+
+# Web Framework
+flask>=3.0
+
+# WebSocket / Real-time Communication
+flask-socketio>=5.3
+eventlet>=0.36
+
+# Cross-Origin Resource Sharing (for Flutter + Dashboard)
+flask-cors>=4.0
+
+# PostgreSQL Database Driver
+psycopg2-binary>=2.9
+
+# Environment Variable Management
+python-dotenv>=1.0
+
+# Testing
+pytest>=8.0
